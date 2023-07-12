@@ -1,0 +1,9 @@
+{
+    "python.analysis.extraPaths": [
+        "s:\\VSC\\data\\extensions\\joedevivo.vscode-circuitpython-0.1.20-win32-x64\\boards\\0x239A\\0x8120",
+        "s:\\VSC\\data\\extensions\\joedevivo.vscode-circuitpython-0.1.20-win32-x64\\stubs",
+        "s:\\VSC\\data\\user-data\\User\\globalStorage\\joedevivo.vscode-circuitpython\\bundle\\20230524\\adafruit-circuitpython-bundle-py-20230524\\lib",
+        "./lib",
+        "."
+    ]
+}
