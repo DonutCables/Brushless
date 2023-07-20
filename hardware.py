@@ -2,6 +2,7 @@ import board
 from busio import I2C
 from rotaryio import IncrementalEncoder
 from digitalio import DigitalInOut, Pull
+from touchio import TouchIn
 from pwmio import PWMOut
 from adafruit_motor import servo
 from displayio import I2CDisplay, release_displays
@@ -19,10 +20,12 @@ MOTOR1 = servo.ContinuousServo(escOut, min_pulse=1000, max_pulse=2000)
 
 ## Initialize all io
 # Add all pin assignments to a tuple in the order of io assignment
-iopins = (board.GP2, board.GP3, board.GP4, board.GP5, board.GP6, board.GP21)
+iopins = (board.GP2, board.GP3, board.GP4, board.GP5, board.GP6, board.GP21, board.GP26)
 # Encoder rotation from the first two pins
 ENCODER = IncrementalEncoder(iopins[0], iopins[1])
 # Encoder press along with all other inputs
-ENC, UP, DOWN, RTRIG = (DigitalInOut(pin) for pin in iopins[2:])
-for button in (ENC, UP, DOWN, RTRIG):
+ENC, UP, DOWN, TRIG = (DigitalInOut(pin) for pin in iopins[2:6])
+for button in (ENC, UP, DOWN, TRIG):
     button.switch_to_input(Pull.UP)
+
+RTRIG = TouchIn(iopins[-1])
