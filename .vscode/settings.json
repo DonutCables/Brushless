@@ -1,4 +1,10 @@
 {
+    "python.languageServer": "Pylance",
+    "python.linting.pylintEnabled": false,
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportMissingModuleSource": "none",
+        "reportMissingImports": "none"
+    },
     "python.analysis.extraPaths": [
         "/home/donutcat/.vscode/extensions/joedevivo.vscode-circuitpython-0.1.20-linux-x64/boards/0x239A/0x8120",
         "/home/donutcat/.vscode/extensions/joedevivo.vscode-circuitpython-0.1.20-linux-x64/stubs",

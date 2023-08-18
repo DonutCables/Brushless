@@ -1,6 +1,7 @@
 import board
-import time
-from hardware import DISPLAY, MOTOR1, ENCODER, ENC, UP, DOWN, TRIG, RTRIG
+from time import sleep, monotonic
+from gc import collect
+from hardware import DISPLAY, MOTOR1, MOTOR2, ENCODER, ENC, UP, DOWN, DTRIG, RTRIG, DFSWITCH, DBSWITCH, RELAYH, RELAYL
 
 ## Control initializations
 # Encoder values
@@ -8,47 +9,47 @@ position = ENCODER.position
 last_position = position
 # Parameters each with multiple options that can be selected
 IDLE_SPEED = [-1, -.9, -.8]
-TEST1 = [-3, 0]
-TEST2 = [-2, .5, 2, 4]
+BURST = ["Auto", 3, 5, 15]
+REV_SPEED = [0, .3, .6, .9]
 # Using list indexes to select which option list to display and scroll
+# Change initial index values to adjust default parameters
 idle_index = 0
-test1_index = 0
-test2_index = 0
+burst_index = 0
+rev_index = 0
 # Using a single index to scroll three lists for parameter display string, index, and value
 # All must have the same length
-INDEXED_OPTIONS = [IDLE_SPEED, TEST1, TEST2]
-MENU_INDEXES = [idle_index, test1_index, test2_index]
-MENU_ITEMS = ["Idle Speed", "Test 1", "Test 2"]
+INDEXED_OPTIONS = [IDLE_SPEED, BURST, REV_SPEED]
+MENU_INDEXES = [idle_index, burst_index, rev_index]
+MENU_ITEMS = ["Idle Speed", "Burst", "Rev Speed"]
 master_index = 0
 
 ## Setting default ESC speeds
 escIdle = -1
-escVar = -100
 escZero = -1
-escMin = -.85
+escMin = -.9
 escMax = 1
 
 ## Core functions
 # Options menu, scrolling occurs by incrementing/decrementing the main index, then using that to inc/dec the index of each option
 def menu():
     """Presents a menu of options and scrolling/selection functionality"""
-    time.sleep(.5)
+    sleep(.5)
     global master_index, position, last_position
     # Names the optionset using main index, then option inside of the set using per-optionset index
     # print() will be replaced with display output functions later
     print(f"{MENU_ITEMS[master_index]} = {INDEXED_OPTIONS[master_index][MENU_INDEXES[master_index]]}")
-    while True:
+    while ENC.value:
         position = ENCODER.position
         # If down button is pressed, move down the parameter list
         if not DOWN.value:
-            time.sleep(.1)
+            sleep(.1)
             master_index += 1
             if master_index == len(MENU_INDEXES):
                 master_index = 0
             print(f"{MENU_ITEMS[master_index]} = {INDEXED_OPTIONS[master_index][MENU_INDEXES[master_index]]}")
         # If up button is pressed, move up the parameter list
         elif not UP.value:
-            time.sleep(.1)
+            sleep(.1)
             master_index -= 1                
             if master_index < 0:
                 master_index = len(MENU_INDEXES) - 1
@@ -66,43 +67,79 @@ def menu():
                     MENU_INDEXES[master_index] = len(INDEXED_OPTIONS[master_index]) - 1
             print(f"{MENU_ITEMS[master_index]} = {INDEXED_OPTIONS[master_index][MENU_INDEXES[master_index]]}")
             last_position = position
-        # Exits via center press
+    # Exits via center press
+    print("leaving")
+    sleep(.5)
+
+# Idling loop
+def idle_loop():
+    """Sets wheels to idle speed and allows entering menu for settings or proceeding to revving loop"""
+    collect()
+    print("idle speed", monotonic())
+    escIdle = IDLE_SPEED[idle_index]
+    MOTOR1.throttle, MOTOR2.throttle = escIdle, escIdle
+    while not RTRIG.value:
         if not ENC.value:
-            print("leaving")
-            time.sleep(.5)
-            break
+            print("enc")
+            sleep(.5)
+            menu()
+    print("revving now", monotonic())
+    revving_loop()
+
+# Revving loop, sets wheels to revving speed then handles trigger presses
+def revving_loop():
+    escSpeed = REV_SPEED[rev_index]
+    MOTOR1.throttle, MOTOR2.throttle = escSpeed, escSpeed
+    print("rev speed set", monotonic())
+    while RTRIG.value:
+        DTRIG.update()
+        pulse = BURST[burst_index]
+        if DTRIG.fell:
+            print("trigger pressed")
+            DFSWITCH.update()
+            DBSWITCH.update()
+            if pulse == "Auto":
+                while DTRIG.value:
+                    DFSWITCH.update()
+                    DBSWITCH.update()
+                    if not DBSWITCH.value:
+                        RELAYL.value, RELAYH.value = True, True
+                    if DBSWITCH.fell:
+                        RELAYL.value, RELAYH.value = True, True
+                        print("on", monotonic())
+                    if DFSWITCH.fell:
+                        RELAYL.value, RELAYH.value = False, False
+                        print("off", monotonic())
+            else:
+                while isinstance(pulse, int) and pulse > 0:
+                    DFSWITCH.update()
+                    DBSWITCH.update()
+                    if not DBSWITCH.value:
+                        RELAYL.value, RELAYH.value = True, True
+                    if DBSWITCH.fell:
+                        RELAYL.value, RELAYH.value = True, True
+                        print("on", monotonic())
+                    if DFSWITCH.fell:
+                        RELAYL.value, RELAYH.value = False, False
+                        pulse -= 1
+                        print("off", monotonic())
+        RELAYL.value, RELAYH.value = False, False
+    print("stopped revving")
+    idle_loop()
 
 ## ESC arm sequence
 def esc_arm():
-    time.sleep(.5)
+    sleep(.5)
     MOTOR1.throttle = escZero
     MOTOR1.throttle = escMax
     MOTOR1.throttle = escMin
-    time.sleep(3)
+    sleep(3)
     MOTOR1.throttle = escZero
-    time.sleep(1)
+    sleep(1)
     print("ESC armed")
-    time.sleep(1)
+    sleep(1)
 
 esc_arm()
 
-while True:
-    position = ENCODER.position
-    escIdle = IDLE_SPEED[idle_index]
-    MOTOR1.throttle = escIdle
-    while RTRIG.value:
-        MOTOR1.throttle = escVar / 100
-        print("revving")
-        if not TRIG.value:
-            print("put firing code here")
-    if position != last_position:
-        if position > last_position and escVar < 100:
-            escVar += 1
-            print(escVar)
-        elif position < last_position and escVar > -100:
-            escVar -= 1
-            print(escVar)
-        last_position = position
-    if not ENC.value:
-        print("enc")
-        menu()
+if __name__ == "__main__":
+    idle_loop()
