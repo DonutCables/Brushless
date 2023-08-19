@@ -1,0 +1,3 @@
+[submodule "Brushless_Refs"]
+	path = Brushless_Refs
+	url = git@github.com:DonutCables/Brushless_Refs.git
