@@ -30,6 +30,7 @@ ENCODER = IncrementalEncoder(iopins[0], iopins[1])
 ENC, UP, DOWN, TRIG = (DigitalInOut(pin) for pin in iopins[2:6])
 for button in (ENC, UP, DOWN, TRIG):
     button.switch_to_input(Pull.UP)
+# Debouncing firing trigger
 DTRIG = Debouncer(TRIG)
 # Cap touch for rev trigger
 RTRIG = TouchIn(iopins[-1])
