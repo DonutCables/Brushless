@@ -1,6 +1,20 @@
 from time import sleep, monotonic
 from gc import enable, collect, mem_free
-from hardware import DISPLAY, MOTOR1, MOTOR2, ENCODER, ENC, UP, DOWN, DTRIG, RTRIG, DFSWITCH, DBSWITCH, RELAYH, RELAYL
+from hardware import (
+    DISPLAY,
+    MOTOR1,
+    MOTOR2,
+    ENCODER,
+    ENC,
+    UP,
+    DOWN,
+    DTRIG,
+    RTRIG,
+    DFSWITCH,
+    DBSWITCH,
+    RELAYH,
+    RELAYL,
+)
 
 ## Control initializations
 # Encoder values
@@ -9,22 +23,23 @@ last_position = position
 
 # List of dicts that each define an option and its parameters
 OPTIONS = [
-    {"name": "Idle Speed", "options": [-1, -.9, -.8], "index": 0},
+    {"name": "Idle Speed", "options": [-1, -0.9, -0.8], "index": 0},
     {"name": "Burst", "options": ["Auto", 3, 5, 15], "index": 0},
-    {"name": "Rev Speed", "options": [0, .3, .6, .9], "index": 0},
+    {"name": "Rev Speed", "options": [0, 0.3, 0.6, 0.9], "index": 0},
 ]
 
 ## Setting default ESC speeds
 escIdle = -1
 escZero = -1
-escMin = -.9
+escMin = -0.9
 escMax = 1
+
 
 ## Core functions
 # Options menu, uses the OPTIONS list of dicts to change options as you view them
 def menu():
     """Presents a menu of options and scrolling/selection functionality"""
-    sleep(.5)
+    sleep(0.5)
     global position, last_position
     option_count = len(OPTIONS)
     current_option = 0
@@ -35,24 +50,25 @@ def menu():
         if not DOWN.value or not UP.value:
             # If down button is pressed, move down the parameter list
             if not DOWN.value:
-                sleep(.2)
+                sleep(0.2)
                 current_option = (current_option + 1) % option_count
             # If up button is pressed, move up the parameter list
             elif not UP.value:
-                sleep(.2)
+                sleep(0.2)
                 current_option = (current_option - 1) % option_count
             current = OPTIONS[current_option]
             print(f"{current['name']} = {current['options'][current['index']]}")
         if position != last_position:
             if position > last_position:
-                current['index'] = (current['index'] + 1) % len(current['options'])
+                current["index"] = (current["index"] + 1) % len(current["options"])
             elif position < last_position:
-                current['index'] = (current['index'] - 1) % len(current['options'])
+                current["index"] = (current["index"] - 1) % len(current["options"])
             current = OPTIONS[current_option]
             print(f"{current['name']} = {current['options'][current['index']]}")
             last_position = position
     print("leaving")
-    sleep(.5)
+    sleep(0.5)
+
 
 # Idling loop, allows going to menu() to change settings but leaves the loop during revving
 def idle_loop():
@@ -64,13 +80,14 @@ def idle_loop():
     while not RTRIG.value:
         if not ENC.value:
             print("enc")
-            sleep(.5)
+            sleep(0.5)
             menu()
             escIdle = OPTIONS[0]["options"][OPTIONS[0]["index"]]
             print(escIdle)
             MOTOR1.throttle, MOTOR2.throttle = escIdle, escIdle
     print("revving now", monotonic())
     revving_loop()
+
 
 # Revving loop
 def revving_loop():
@@ -117,9 +134,10 @@ def revving_loop():
     print("stopped revving")
     idle_loop()
 
+
 ## ESC arm sequence
 def esc_arm():
-    sleep(.5)
+    sleep(0.5)
     MOTOR1.throttle, MOTOR2.throttle = escZero, escZero
     MOTOR1.throttle, MOTOR2.throttle = escMax, escMax
     MOTOR1.throttle, MOTOR2.throttle = escMin, escMin
@@ -128,6 +146,7 @@ def esc_arm():
     sleep(1)
     print("ESC armed")
     sleep(1)
+
 
 esc_arm()
 
