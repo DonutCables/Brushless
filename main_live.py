@@ -171,7 +171,7 @@ async def revving_loop():
                 for _ in range(burst_count):
                     BlasterS.relay_trigger_release(0.02, 0.035)
                     complete += 1
-                    print("burst",complete)
+                    print("burst", complete)
                 burst_count = BlasterS.burstCount
                 complete = 0
             await sleep(0)
