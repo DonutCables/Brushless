@@ -50,8 +50,8 @@ class Blaster_States:
         self.escMin = -0.95
         self.escMax = 1
         self.escIdle = -1
-        self.escRev = -0.86
-        self.burstCount = 3
+        self.escRev = -0.05
+        self.burstCount = 8
         self.burstCap = 20
         self.optionNames = ["escIdle", "escRev", "burstCount"]
 
@@ -71,12 +71,12 @@ class Blaster_States:
         """Sets relay to release"""
         RELAY1.value, RELAY2.value = True, True
 
-    def relay_trigger_release(self, time=0.05):
+    def relay_trigger_release(self, time1=0.020, time2=0.035):
         """Sets relay to trigger then release"""
         self.relay_trigger()
-        tsleep(time)
+        tsleep(time1)
         self.relay_release()
-        tsleep(time)
+        tsleep(time2)
 
 
 class ENC_States:
@@ -141,7 +141,7 @@ async def idle_loop():
     while True:
         if SEMIB.pressed:
             print("Semi")
-        elif BURSTB.pressed:
+        if BURSTB.pressed:
             print("Burst")
         if RTRIGB.pressed:
             print("Enter rev loop")
@@ -160,6 +160,7 @@ async def revving_loop():
     print("Revving now")
     burst_count = BlasterS.burstCount
     BlasterS.motors_rev()
+    complete = 0
     while True:
         if DTRIGB.pressed:
             print("trigger pressed")
@@ -168,9 +169,9 @@ async def revving_loop():
                 print("single fire")
             if not BURSTB.value:
                 for _ in range(burst_count):
-                    BlasterS.relay_trigger_release()
+                    BlasterS.relay_trigger_release(0.02, 0.035)
                     complete += 1
-                    print("burst" + complete)
+                    print("burst",complete)
                 burst_count = BlasterS.burstCount
                 complete = 0
             await sleep(0)

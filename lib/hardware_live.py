@@ -16,9 +16,10 @@ try:
 except RuntimeError:
     pass
 try:
-    oled_interface = I2CDisplay(i2c, device_address=0x3C)
+    oled_interface = I2CDisplay(i2c, device_address=0x3c)
     DISPLAY = SSD1306(oled_interface, width=128, height=64)
-except:
+except Exception as e:
+    print(e)
     pass
 
 ## ESC output creation
