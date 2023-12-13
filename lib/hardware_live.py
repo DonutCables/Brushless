@@ -20,6 +20,7 @@ try:
     DISPLAY = SSD1306(oled_interface, width=128, height=64)
 except Exception as e:
     print(e)
+    DISPLAY = None
     pass
 
 ## ESC output creation
@@ -57,7 +58,7 @@ try:
     DOWN = digitalio.DigitalIO(seesaw, 4)
     RIGHT = digitalio.DigitalIO(seesaw, 5)
 
-    ENCB = Button(ENC)
+    ENCB = Button(ENC, long_duration_ms=2000)
     UPB = Button(UP)
     LEFTB = Button(LEFT)
     DOWNB = Button(DOWN)
@@ -68,5 +69,5 @@ except:
 ## IO for controlling solenoid cycling
 RELAY1 = DigitalInOut(board.D9)
 RELAY2 = DigitalInOut(board.D10)
-for relay in [RELAY1, RELAY2]:
-    relay.switch_to_output(True, DriveMode.PUSH_PULL)
+RELAY1.switch_to_output(True, DriveMode.PUSH_PULL)
+RELAY2.switch_to_output(True, DriveMode.PUSH_PULL)

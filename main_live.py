@@ -2,7 +2,8 @@
 Imports
 """
 # region
-from time import monotonic
+from struct import pack, unpack
+from microcontroller import nvm
 from time import sleep as tsleep
 from gc import enable, mem_free
 from asyncio import sleep, create_task, gather, run, Event
@@ -15,14 +16,13 @@ from hardware import (
     BURSTB,
     RELAY1,
     RELAY2,
+    DISPLAY,
 )
 
-try:
-    from hardware import DISPLAY
-except:
-    pass
-no_encoder = False
-try:
+if DISPLAY == None:
+    no_encoder = True
+else:
+    no_encoder = False
     from hardware import (
         ENCODER,
         ENCB,
@@ -31,55 +31,83 @@ try:
         DOWNB,
         RIGHTB,
     )
-except Exception:
-    no_encoder = True
-    pass
+
 # endregion
 """
 State initializations and core background functions
 """
-
-
 # region
-class Blaster_States:
+
+
+class BlasterStates:
     """Manages blaster states"""
 
-    def __init__(self):
-        self.menu_index = 0
-        self.escZero = -1
-        self.escMin = -0.95
-        self.escMax = 1
-        self.escIdle = -1
-        self.escRev = -0.05
-        self.burstCount = 8
-        self.burstCap = 20
-        self.optionNames = ["escIdle", "escRev", "burstCount"]
+    def __init__(
+        self,
+        escIdle=0,
+        escRev=25,
+        extendTimeMS=20,
+        retractTimeMS=35,
+        burstCount=5,
+    ):
+        self.mIndex = 0
+        self.escZero = 0
+        self.escMin = 2
+        self.escMax = 100
+        self.escIdle = escIdle
+        self.escRev = escRev
+        self.extendTimeMS = extendTimeMS
+        self.retractTimeMS = retractTimeMS
+        self.burstCount = burstCount
+        self.optNames = [
+            "escIdle",
+            "escRev",
+            "extendTimeMS",
+            "retractTimeMS",
+            "burstCount",
+        ]
+
+    def gettr(self):
+        return getattr(self, self.optNames[self.mIndex])
+
+    def menu_print(self):
+        """Prints menu options"""
+        print(
+            f"{self.optNames[self.mIndex]} = {getattr(self, self.optNames[self.mIndex])}"
+        )
 
     def motors_idle(self):
         """Sets motors to idle speed"""
-        MOTOR1.throttle, MOTOR2.throttle = self.escIdle, self.escIdle
+        idle_throttle = (self.escIdle / 50) - 1
+        MOTOR1.throttle = MOTOR2.throttle = idle_throttle
 
     def motors_rev(self):
         """Sets motors to rev speed"""
-        MOTOR1.throttle, MOTOR2.throttle = self.escRev, self.escRev
+        rev_throttle = (self.escRev / 50) - 1
+        MOTOR1.throttle = MOTOR2.throttle = rev_throttle
+
+    def motors_throttle(self, throttle):
+        """Sets motors to throttle value"""
+        set_throttle = (throttle / 50) - 1
+        MOTOR1.throttle = MOTOR2.throttle = set_throttle
 
     def relay_trigger(self):
         """Sets relay to trigger"""
-        RELAY1.value, RELAY2.value = False, False
+        RELAY1.value = RELAY2.value = False
 
     def relay_release(self):
         """Sets relay to release"""
-        RELAY1.value, RELAY2.value = True, True
+        RELAY1.value = RELAY2.value = True
 
-    def relay_trigger_release(self, time1=0.020, time2=0.035):
+    def relay_trigger_release(self):
         """Sets relay to trigger then release"""
         self.relay_trigger()
-        tsleep(time1)
+        tsleep(self.extendTimeMS / 1000)
         self.relay_release()
-        tsleep(time2)
+        tsleep(self.retractTimeMS / 1000)
 
 
-class ENC_States:
+class ENCStates:
     """Manages encoder rotation"""
 
     def __init__(self, encoder):
@@ -99,15 +127,14 @@ class ENC_States:
 
     def encoder_handler(self, x, y):
         """Handles encoder rotation"""
-        while True:
-            if self.encoder.position > self.last_position:
-                self.last_position = self.encoder.position
-                self._was_rotated.clear()
-                return x + y
-            elif self.encoder.position < self.last_position:
-                self.last_position = self.encoder.position
-                self._was_rotated.clear()
-                return x - y
+        if self.encoder.position > self.last_position:
+            self.last_position = self.encoder.position
+            self._was_rotated.clear()
+            return x + y
+        elif self.encoder.position < self.last_position:
+            self.last_position = self.encoder.position
+            self._was_rotated.clear()
+            return x - y
 
 
 async def button_monitor():
@@ -124,20 +151,32 @@ async def button_monitor():
         await sleep(0)
 
 
-BlasterS = Blaster_States()
+## Load saved values from NVM
+try:
+    saved_values = unpack("5i", nvm[0:20])
+except:
+    saved_values = None
+    pass
+
+## Initialize states
+if saved_values is None:
+    BStates = BlasterStates()
+else:
+    BStates = BlasterStates(*saved_values)
 if not no_encoder:
-    ENCS = ENC_States(ENCODER)
+    ENCS = ENCStates(ENCODER)
+
 # endregion
 """
 Primary functions
 """
-
-
 # region
+
+
 async def idle_loop():
     """Sets wheels to idle speed and allows entering menu for settings or proceeding to revving loop"""
     print("Idle start")
-    BlasterS.motors_idle()
+    BStates.motors_idle()
     while True:
         if SEMIB.pressed:
             print("Semi")
@@ -146,33 +185,33 @@ async def idle_loop():
         if RTRIGB.pressed:
             print("Enter rev loop")
             await revving_loop()
-            BlasterS.motors_idle()
+            BStates.motors_idle()
         if not no_encoder:
             if ENCB.pressed:
                 print("Enter menu")
                 await menu()
-                BlasterS.motors_idle()
+                BStates.motors_idle()
         await sleep(0)
 
 
 async def revving_loop():
     """Sets wheels to revving speed then handles trigger presses"""
     print("Revving now")
-    burst_count = BlasterS.burstCount
-    BlasterS.motors_rev()
+    burst_count = BStates.burstCount
+    BStates.motors_rev()
     complete = 0
     while True:
         if DTRIGB.pressed:
             print("trigger pressed")
             if not SEMIB.value:
-                BlasterS.relay_trigger_release()
+                BStates.relay_trigger_release()
                 print("single fire")
             if not BURSTB.value:
                 for _ in range(burst_count):
-                    BlasterS.relay_trigger_release(0.02, 0.035)
+                    BStates.relay_trigger_release()
                     complete += 1
                     print("burst", complete)
-                burst_count = BlasterS.burstCount
+                burst_count = BStates.burstCount
                 complete = 0
             await sleep(0)
         if RTRIGB.value:
@@ -184,37 +223,37 @@ async def revving_loop():
 async def menu():
     """Options Menu"""
     await sleep(0.5)
-    print(
-        f"{BlasterS.optionNames[BlasterS.menu_index]} = {getattr(BlasterS, BlasterS.optionNames[BlasterS.menu_index])}"
-    )
+    BStates.menu_print()
     while True:
         if UPB.pressed:
-            BlasterS.menu_index = (BlasterS.menu_index - 1) % len(BlasterS.optionNames)
-            print(
-                f"{BlasterS.optionNames[BlasterS.menu_index]} = {getattr(BlasterS, BlasterS.optionNames[BlasterS.menu_index])}"
-            )
+            BStates.mIndex = (BStates.mIndex - 1) % len(BStates.Names)
+            BStates.menu_print()
         elif DOWNB.pressed:
-            BlasterS.menu_index = (BlasterS.menu_index + 1) % len(BlasterS.optionNames)
-            print(
-                f"{BlasterS.optionNames[BlasterS.menu_index]} = {getattr(BlasterS, BlasterS.optionNames[BlasterS.menu_index])}"
-            )
+            BStates.mIndex = (BStates.mIndex + 1) % len(BStates.Names)
+            BStates.menu_print()
         if ENCS._was_rotated.is_set():
-            if BlasterS.menu_index == 2:
-                option = (
-                    ENCS.encoder_handler(BlasterS.burstCount, 1) % BlasterS.burstCap
-                )
+            if "esc" in BStates.optNames[BStates.mIndex]:
+                option = ENCS.encoder_handler(BStates.gettr(), 1) % 100
             else:
-                optionx100 = ENCS.encoder_handler(
-                    getattr(BlasterS, BlasterS.optionNames[BlasterS.menu_index]) * 100,
-                    1,
-                )
-                option = round(max(min(100, optionx100), -100) / 100, 2)
-            setattr(BlasterS, BlasterS.optionNames[BlasterS.menu_index], option)
-            print(
-                f"{BlasterS.optionNames[BlasterS.menu_index]} = {getattr(BlasterS, BlasterS.optionNames[BlasterS.menu_index])}"
-            )
+                option = ENCS.encoder_handler(BStates.gettr(), 1) % 50
+            setattr(BStates, BStates.optNames[BStates.mIndex], option)
+            BStates.menu_print()
         if ENCB.short_count > 0:
             break
+        if ENCB.long_press:
+            print("Saving values to NVM")
+            try:
+                nvm[0:20] = pack(
+                    "5i",
+                    BStates.escIdle,
+                    BStates.escRev,
+                    BStates.extendTimeMS,
+                    BStates.retractTimeMS,
+                    BStates.burstCount,
+                )
+            except:
+                print("NVM write failed")
+                pass
         await sleep(0)
     print("Leaving menu")
     print(mem_free())
@@ -229,17 +268,14 @@ Loop setup
 
 
 def esc_arm():
-    tsleep(0.25)
-    MOTOR1.throttle, MOTOR2.throttle = BlasterS.escZero, BlasterS.escZero
-    tsleep(0.2)
-    MOTOR1.throttle, MOTOR2.throttle = BlasterS.escMax, BlasterS.escMax
-    tsleep(0.2)
-    MOTOR1.throttle, MOTOR2.throttle = BlasterS.escMin, BlasterS.escMin
+    tsleep(0.5)
+    BStates.motors_throttle(BStates.escZero)
+    BStates.motors_throttle(BStates.escMax)
+    BStates.motors_throttle(BStates.escMin)
     tsleep(3)
-    MOTOR1.throttle, MOTOR2.throttle = BlasterS.escZero, BlasterS.escZero
+    BStates.motors_throttle(BStates.escZero)
     tsleep(1)
     print("ESC armed")
-    tsleep(1)
 
 
 enable()
