@@ -14,12 +14,12 @@ try:
     i2c = board.STEMMA_I2C()
     seesaw = seesaw.Seesaw(i2c, addr=0x49)
 except RuntimeError:
+    i2c = None
     pass
 try:
     oled_interface = I2CDisplay(i2c, device_address=0x3C)
     DISPLAY = SSD1306(oled_interface, width=128, height=64)
-except Exception as e:
-    print(e)
+except Exception:
     DISPLAY = None
     pass
 

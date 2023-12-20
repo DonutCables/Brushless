@@ -52,8 +52,8 @@ class BlasterStates:
     ):
         self.mIndex = 0
         self.escZero = 0
-        self.escMin = 2
-        self.escMax = 100
+        self.escMin = 5
+        self.escMax = 95
         self.escIdle = escIdle
         self.escRev = escRev
         self.extendTimeMS = extendTimeMS
@@ -78,17 +78,17 @@ class BlasterStates:
 
     def motors_idle(self):
         """Sets motors to idle speed"""
-        idle_throttle = (self.escIdle / 50) - 1
+        idle_throttle = max(min(1.0, ((self.escIdle / 50) - 1)), -1.0)
         MOTOR1.throttle = MOTOR2.throttle = idle_throttle
 
     def motors_rev(self):
         """Sets motors to rev speed"""
-        rev_throttle = (self.escRev / 50) - 1
+        rev_throttle = max(min(1.0, ((self.escRev / 50) - 1)), -1.0)
         MOTOR1.throttle = MOTOR2.throttle = rev_throttle
 
     def motors_throttle(self, throttle):
         """Sets motors to throttle value"""
-        set_throttle = (throttle / 50) - 1
+        set_throttle = max(min(1.0, ((throttle / 50) - 1)), -1.0)
         MOTOR1.throttle = MOTOR2.throttle = set_throttle
 
     def relay_trigger(self):
@@ -153,9 +153,13 @@ async def button_monitor():
 
 ## Load saved values from NVM
 try:
-    saved_values = unpack("5i", nvm[0:20])
+    saved_values = unpack(
+        "5h", nvm[0:10]
+    )  # h = short, 2 bytes each. i = int, 4 bytes each
+    print(saved_values)
 except:
     saved_values = None
+    print("Load failed")
     pass
 
 ## Initialize states
@@ -226,10 +230,10 @@ async def menu():
     BStates.menu_print()
     while True:
         if UPB.pressed:
-            BStates.mIndex = (BStates.mIndex - 1) % len(BStates.Names)
+            BStates.mIndex = (BStates.mIndex - 1) % len(BStates.optNames)
             BStates.menu_print()
         elif DOWNB.pressed:
-            BStates.mIndex = (BStates.mIndex + 1) % len(BStates.Names)
+            BStates.mIndex = (BStates.mIndex + 1) % len(BStates.optNames)
             BStates.menu_print()
         if ENCS._was_rotated.is_set():
             if "esc" in BStates.optNames[BStates.mIndex]:
@@ -243,8 +247,8 @@ async def menu():
         if ENCB.long_press:
             print("Saving values to NVM")
             try:
-                nvm[0:20] = pack(
-                    "5i",
+                nvm[0:10] = pack(
+                    "5h",  # h = short, 2 bytes each. i = int, 4 bytes each
                     BStates.escIdle,
                     BStates.escRev,
                     BStates.extendTimeMS,
@@ -254,6 +258,7 @@ async def menu():
             except:
                 print("NVM write failed")
                 pass
+            BStates.menu_print()
         await sleep(0)
     print("Leaving menu")
     print(mem_free())
@@ -270,7 +275,9 @@ Loop setup
 def esc_arm():
     tsleep(0.5)
     BStates.motors_throttle(BStates.escZero)
+    tsleep(0.3)
     BStates.motors_throttle(BStates.escMax)
+    tsleep(0.3)
     BStates.motors_throttle(BStates.escMin)
     tsleep(3)
     BStates.motors_throttle(BStates.escZero)
