@@ -304,15 +304,9 @@ Loop setup
 
 
 def esc_arm():
-    tsleep(0.5)
+    tsleep(0.1)
     BStates.motors_throttle(BStates.escZero)
-    tsleep(0.3)
-    BStates.motors_throttle(BStates.escMax)
-    tsleep(0.3)
-    BStates.motors_throttle(BStates.escZero)  # was escMin, trying escZero
-    tsleep(3)
-    BStates.motors_throttle(BStates.escZero)
-    tsleep(1)
+    tsleep(4)
     print("ESC armed")
 
 
