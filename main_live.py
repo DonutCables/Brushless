@@ -4,6 +4,7 @@ Imports
 # region
 from struct import pack, unpack
 from microcontroller import nvm
+from time import monotonic
 from time import sleep as tsleep
 from gc import enable, mem_free
 from asyncio import sleep, create_task, gather, run, Event
@@ -49,6 +50,7 @@ class BlasterStates:
         extendTimeMS=20,
         retractTimeMS=35,
         burstCount=5,
+        spoolDown=0,
     ):
         self.mIndex = 0
         self.escZero = 0
@@ -59,12 +61,14 @@ class BlasterStates:
         self.extendTimeMS = extendTimeMS
         self.retractTimeMS = retractTimeMS
         self.burstCount = burstCount
+        self.spoolDown = spoolDown
         self.optNames = [
             "escIdle",
             "escRev",
             "extendTimeMS",
             "retractTimeMS",
             "burstCount",
+            "spoolDown",
         ]
 
     def gettr(self):
@@ -154,7 +158,7 @@ async def button_monitor():
 ## Load saved values from NVM
 try:
     saved_values = unpack(
-        "5h", nvm[0:10]
+        "6h", nvm[0:12]
     )  # h = short, 2 bytes each. i = int, 4 bytes each
     print(saved_values)
 except:
@@ -181,6 +185,8 @@ async def idle_loop():
     """Sets wheels to idle speed and allows entering menu for settings or proceeding to revving loop"""
     print("Idle start")
     BStates.motors_idle()
+    spoolspd = BStates.escIdle
+    spooltime = monotonic()
     while True:
         if SEMIB.pressed:
             print("Semi")
@@ -189,7 +195,18 @@ async def idle_loop():
         if RTRIGB.pressed:
             print("Enter rev loop")
             await revving_loop()
-            BStates.motors_idle()
+            if BStates.spoolDown == 0:
+                print("no spooldown")
+                BStates.motors_idle()
+            elif BStates.spoolDown > 1:
+                print(f"spooling down rate {BStates.spoolDown}")
+                spoolspd = BStates.escRev
+        if spoolspd > BStates.escIdle and monotonic() - spooltime > (
+            BStates.spoolDown / 1000
+        ):
+            spooltime = monotonic()
+            spoolspd -= 1
+            BStates.motors_throttle(spoolspd)
         if not no_encoder:
             if ENCB.pressed:
                 print("Enter menu")
@@ -237,9 +254,9 @@ async def menu():
             BStates.menu_print()
         if ENCS._was_rotated.is_set():
             if "esc" in BStates.optNames[BStates.mIndex]:
-                option = ENCS.encoder_handler(BStates.gettr(), 1) % 100
+                option = ENCS.encoder_handler(BStates.gettr(), 1) % 101
             else:
-                option = ENCS.encoder_handler(BStates.gettr(), 1) % 50
+                option = ENCS.encoder_handler(BStates.gettr(), 1) % 51
             setattr(BStates, BStates.optNames[BStates.mIndex], option)
             BStates.menu_print()
         if ENCB.short_count > 0:
@@ -247,13 +264,14 @@ async def menu():
         if ENCB.long_press:
             print("Saving values to NVM")
             try:
-                nvm[0:10] = pack(
-                    "5h",  # h = short, 2 bytes each. i = int, 4 bytes each
+                nvm[0:12] = pack(
+                    "6h",  # h = short, 2 bytes each. i = int, 4 bytes each
                     BStates.escIdle,
                     BStates.escRev,
                     BStates.extendTimeMS,
                     BStates.retractTimeMS,
                     BStates.burstCount,
+                    BStates.spoolDown,
                 )
             except:
                 print("NVM write failed")
@@ -278,7 +296,7 @@ def esc_arm():
     tsleep(0.3)
     BStates.motors_throttle(BStates.escMax)
     tsleep(0.3)
-    BStates.motors_throttle(BStates.escMin)
+    BStates.motors_throttle(BStates.escZero)  # was escMin, trying escZero
     tsleep(3)
     BStates.motors_throttle(BStates.escZero)
     tsleep(1)
