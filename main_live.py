@@ -147,7 +147,9 @@ async def button_monitor():
         if not no_encoder:
             ENCB.update()
             UPB.update()
+            LEFTB.update()
             DOWNB.update()
+            RIGHTB.update()
         DTRIGB.update()
         RTRIGB.update()
         SEMIB.update()
@@ -251,6 +253,17 @@ async def menu():
             BStates.menu_print()
         elif DOWNB.pressed:
             BStates.mIndex = (BStates.mIndex + 1) % len(BStates.optNames)
+            BStates.menu_print()
+        elif LEFTB.pressed:
+            option = 0
+            setattr(BStates, BStates.optNames[BStates.mIndex], option)
+            BStates.menu_print()
+        elif RIGHTB.pressed:
+            if "esc" in BStates.optNames[BStates.mIndex]:
+                option = 100
+            else:
+                option = 50
+            setattr(BStates, BStates.optNames[BStates.mIndex], option)
             BStates.menu_print()
         if ENCS._was_rotated.is_set():
             if "esc" in BStates.optNames[BStates.mIndex]:
