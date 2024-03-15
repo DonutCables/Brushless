@@ -12,7 +12,6 @@ from hardware import (
     MOTOR1,
     MOTOR2,
     DTRIGB,
-    DTRIG,
     RTRIGB,
     SEMIB,
     BURSTB,
@@ -57,7 +56,6 @@ class BlasterStates:
         self.escZero = 0
         self.escMin = 5
         self.escMax = 95
-        self.mode = None
         self.escIdle = escIdle
         self.escRev = escRev
         self.extendTimeMS = extendTimeMS
@@ -191,23 +189,11 @@ async def idle_loop():
     BStates.motors_idle()
     spoolspd = BStates.escIdle
     spooltime = monotonic()
-    modetime1 = monotonic()
-    modetime2 = monotonic()
     while True:
         if SEMIB.pressed:
-            if monotonic() - modetime2 < 2:
-                BStates.mode = "binary"
-            else:
-                BStates.mode = "semi"
-                modetime2 = monotonic()
-            print(BStates.mode)
+            print("Semi")
         if BURSTB.pressed:
-            if monotonic() - modetime1 < 2:
-                BStates.mode = "auto"
-            else:
-                BStates.mode = "burst"
-                modetime1 = monotonic()
-            print(BStates.mode)
+            print("Burst")
         if RTRIGB.pressed:
             await revving_loop()
             if BStates.spoolDown == 0:
@@ -234,18 +220,13 @@ async def revving_loop():
     BStates.motors_rev()
     while True:
         if DTRIGB.pressed:
-            if BStates.mode == "semi" or BStates.mode == "binary":
+            if not SEMIB.value:
                 BStates.relay_trigger_release()
-            elif BStates.mode == "burst":
+            if not BURSTB.value:
                 for _ in range(burst_count):
                     BStates.relay_trigger_release()
                 burst_count = BStates.burstCount
-            elif BStates.mode == "auto":
-                while not DTRIG.value:
-                    BStates.relay_trigger_release()
             await sleep(0)
-        if DTRIGB.released and BStates.mode == "binary":
-            BStates.relay_trigger_release()
         if RTRIGB.value:
             break
         await sleep(0)
