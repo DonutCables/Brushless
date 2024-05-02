@@ -25,8 +25,8 @@ except Exception:
 
 ## ESC output creation
 # Outputs in 2ms PWM standard
-esc1Out = PWMOut(board.D8, frequency=100)
-esc4Out = PWMOut(board.D7, frequency=500)
+esc1Out = PWMOut(board.D5, frequency=100)
+esc4Out = PWMOut(board.D6, frequency=500)
 # Flywheels as a single output signal
 MOTORS = servo.ContinuousServo(esc1Out, min_pulse=1000, max_pulse=2000)
 # Solenoid as a brushed "motor"

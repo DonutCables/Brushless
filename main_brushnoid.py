@@ -97,7 +97,7 @@ class BlasterStates:
 
     def noid_trigger(self):
         """Sets solenoid to trigger"""
-        NOID.throttle = 1.0
+        NOID.throttle = 0.95
 
     def noid_release(self):
         """Sets solenoid to release"""
@@ -189,8 +189,8 @@ async def idle_loop():
     BStates.motors_idle()
     spoolspd = BStates.escIdle
     spooltime = monotonic()
-    modetime1 = monotonic()
-    modetime2 = monotonic()
+    modetime1 = monotonic() - 2
+    modetime2 = monotonic() - 2
     while True:
         if SEMIB.pressed:
             if monotonic() - modetime2 < 2:
