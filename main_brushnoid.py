@@ -46,6 +46,8 @@ class BlasterStates:
         self,
         escIdle=0,
         escRev=25,
+        escNoidLow=0,
+        escNoidHigh=95,
         extendTimeMS=20,
         retractTimeMS=35,
         burstCount=5,
@@ -58,6 +60,8 @@ class BlasterStates:
         self.mode = None
         self.escIdle = escIdle
         self.escRev = escRev
+        self.escNoidLow = escNoidLow
+        self.escNoidHigh = escNoidHigh
         self.extendTimeMS = extendTimeMS
         self.retractTimeMS = retractTimeMS
         self.burstCount = burstCount
@@ -65,6 +69,8 @@ class BlasterStates:
         self.optNames = [
             "escIdle",
             "escRev",
+            "escNoidLow",
+            "escNoidHigh",
             "extendTimeMS",
             "retractTimeMS",
             "burstCount",
@@ -80,28 +86,31 @@ class BlasterStates:
             f"{self.optNames[self.mIndex]} = {getattr(self, self.optNames[self.mIndex])}"
         )
 
-    def motors_idle(self):
-        """Sets motors to idle speed"""
-        idle_throttle = max(min(1.0, ((self.escIdle / 50) - 1)), -1.0)
-        MOTORS.throttle = idle_throttle
-
-    def motors_rev(self):
-        """Sets motors to rev speed"""
-        rev_throttle = max(min(1.0, ((self.escRev / 50) - 1)), -1.0)
-        MOTORS.throttle = rev_throttle
-
     def motors_throttle(self, throttle):
         """Sets motors to throttle value"""
         set_throttle = max(min(1.0, ((throttle / 50) - 1)), -1.0)
         MOTORS.throttle = set_throttle
 
+    def motors_idle(self):
+        """Sets motors to idle speed"""
+        self.motors_throttle(self.escIdle)
+
+    def motors_rev(self):
+        """Sets motors to rev speed"""
+        self.motors_throttle(self.escRev)
+
+    def noid_throttle(self, throttle):
+        """Sets solenoid throttle"""
+        set_throttle = max(min(1.0, ((throttle / 50) - 1)), -1.0)
+        NOID.throttle = set_throttle
+
     def noid_trigger(self):
         """Sets solenoid to trigger"""
-        NOID.throttle = 0.95
+        self.noid_throttle(self.escNoidHigh)
 
     def noid_release(self):
         """Sets solenoid to release"""
-        NOID.throttle = -1.0
+        self.noid_throttle(self.escNoidLow)
 
     def noid_trigger_release(self):
         """Sets solenoid to trigger then release"""
@@ -160,7 +169,7 @@ async def button_monitor():
 ## Load saved values from NVM
 try:
     saved_values = unpack(
-        "6h", nvm[0:12]
+        "8h", nvm[0:16]
     )  # h = short, 2 bytes each. i = int, 4 bytes each
     print(saved_values)
 except:
@@ -212,6 +221,8 @@ async def idle_loop():
                 BStates.motors_idle()
             elif BStates.spoolDown > 1:
                 spoolspd = BStates.escRev
+            if BStates.escNoidLow > 0:
+                BStates.noid_throttle(0)
         if spoolspd > BStates.escIdle and monotonic() - spooltime > (
             BStates.spoolDown / 1000
         ):
@@ -283,10 +294,12 @@ async def menu():
         if ENCB.long_press:
             print("Saving values to NVM")
             try:
-                nvm[0:12] = pack(
-                    "6h",  # h = short, 2 bytes each. i = int, 4 bytes each
+                nvm[0:16] = pack(
+                    "8h",  # h = short, 2 bytes each. i = int, 4 bytes each
                     BStates.escIdle,
                     BStates.escRev,
+                    BStates.escNoidLow,
+                    BStates.escNoidHigh,
                     BStates.extendTimeMS,
                     BStates.retractTimeMS,
                     BStates.burstCount,
