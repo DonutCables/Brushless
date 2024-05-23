@@ -122,11 +122,14 @@ class BlasterStates:
 
     def noid_trigger(self):
         """Sets solenoid to trigger"""
-        self.noid_throttle(self.escNoidHigh)
+        if self.noidPolarity:
+            self.noid_throttle(self.escNoidHigh)
+        elif not self.noidPolarity:
+            self.noid_throttle(self.escNoidLow)
 
     def noid_release(self):
         """Sets solenoid to release"""
-        self.noid_throttle(self.escNoidLow)
+        self.noid_throttle(self.escMid)
 
     def noid_trigger_release(self):
         """Sets solenoid to trigger then release"""
@@ -238,8 +241,7 @@ async def idle_loop():
                 BStates.motors_idle()
             elif BStates.spoolDown > 1:
                 spoolspd = BStates.escRev
-            if BStates.escNoidLow > 0:
-                BStates.noid_throttle(0)
+            BStates.noid_throttle(BStates.escMid)
         if spoolspd > BStates.escIdle and monotonic() - spooltime > (
             BStates.spoolDown / 1000
         ):
@@ -348,7 +350,7 @@ Loop setup
 def esc_arm():
     tsleep(0.1)
     BStates.motors_throttle(BStates.escZero)
-    BStates.noid_throttle(BStates.escZero)
+    BStates.noid_throttle(BStates.escMid)
     tsleep(4)
     print("ESC armed")
 
