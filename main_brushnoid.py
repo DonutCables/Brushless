@@ -51,7 +51,7 @@ class BlasterStates:
         escCapLow=44,
         escCapMid=59,
         escCapHigh=74,
-        escNoidLow=0,
+        escNoidLow=5,
         escNoidHigh=95,
         extendTimeMS=20,
         retractTimeMS=35,
@@ -64,6 +64,7 @@ class BlasterStates:
         self.escMin = 5
         self.escMax = 95
         self.mode = None
+        self.noidPolarity = False
         self.escIdle = escIdle
         self.escRev = escRev
         self.escCapLow = escCapLow
@@ -120,11 +121,17 @@ class BlasterStates:
 
     def noid_trigger(self):
         """Sets solenoid to trigger"""
-        self.noid_throttle(self.escNoidHigh)
+        if self.noidPolarity:
+            self.noid_throttle(self.escNoidHigh)
+        elif not self.noidPolarity:
+            self.noid_throttle(self.escNoidLow)
 
     def noid_release(self):
         """Sets solenoid to release"""
-        self.noid_throttle(self.escNoidLow)
+        if self.noidPolarity:
+            self.noid_throttle(self.escNoidLow)
+        elif not self.noidPolarity:
+            self.noid_throttle(self.escNoidHigh)
 
     def noid_trigger_release(self):
         """Sets solenoid to trigger then release"""
@@ -132,6 +139,7 @@ class BlasterStates:
         tsleep(self.extendTimeMS / 1000)
         self.noid_release()
         tsleep(self.retractTimeMS / 1000)
+        self.noidPolarity ^= True
 
 
 class ENCStates:
@@ -345,7 +353,7 @@ Loop setup
 def esc_arm():
     tsleep(0.1)
     BStates.motors_throttle(BStates.escZero)
-    BStates.noid_release()
+    BStates.noid_throttle(BStates.escZero)
     tsleep(4)
     print("ESC armed")
 
