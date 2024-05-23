@@ -15,9 +15,7 @@ from hardware import (
     DTRIG,
     RTRIGB,
     SEMIB,
-    SEMI,
     BURSTB,
-    BURST,
     DISPLAY,
 )
 
@@ -48,15 +46,11 @@ class BlasterStates:
         self,
         escIdle=0,
         escRev=25,
-        escCapLow=44,
-        escCapMid=59,
-        escCapHigh=74,
         escNoidLow=0,
         escNoidHigh=95,
         extendTimeMS=20,
         retractTimeMS=35,
         burstCount=5,
-        burstDelayMS=0,
         spoolDown=0,
     ):
         self.mIndex = 0
@@ -66,28 +60,20 @@ class BlasterStates:
         self.mode = None
         self.escIdle = escIdle
         self.escRev = escRev
-        self.escCapLow = escCapLow
-        self.escCapMid = escCapMid
-        self.escCapHigh = escCapHigh
         self.escNoidLow = escNoidLow
         self.escNoidHigh = escNoidHigh
         self.extendTimeMS = extendTimeMS
         self.retractTimeMS = retractTimeMS
         self.burstCount = burstCount
-        self.burstDelayMS = burstDelayMS
         self.spoolDown = spoolDown
         self.optNames = [
             "escIdle",
             "escRev",
-            "escCapLow",
-            "escCapMid",
-            "escCapHigh",
             "escNoidLow",
             "escNoidHigh",
             "extendTimeMS",
             "retractTimeMS",
             "burstCount",
-            "burstDelayMS",
             "spoolDown",
         ]
 
@@ -183,7 +169,7 @@ async def button_monitor():
 ## Load saved values from NVM
 try:
     saved_values = unpack(
-        "12h", nvm[0:24]
+        "8h", nvm[0:16]
     )  # h = short, 2 bytes each. i = int, 4 bytes each
     print(saved_values)
 except:
@@ -262,12 +248,10 @@ async def revving_loop():
             elif BStates.mode == "burst":
                 for _ in range(burst_count):
                     BStates.noid_trigger_release()
-                    tsleep(BStates.burstDelayMS / 1000)
                 burst_count = BStates.burstCount
             elif BStates.mode == "auto":
                 while not DTRIG.value:
                     BStates.noid_trigger_release()
-                    tsleep(BStates.burstDelayMS / 1000)
             await sleep(0)
         if DTRIGB.released and BStates.mode == "binary":
             BStates.noid_trigger_release()
@@ -310,19 +294,15 @@ async def menu():
         if ENCB.long_press:
             print("Saving values to NVM")
             try:
-                nvm[0:24] = pack(
-                    "12h",  # h = short, 2 bytes each. i = int, 4 bytes each
+                nvm[0:16] = pack(
+                    "8h",  # h = short, 2 bytes each. i = int, 4 bytes each
                     BStates.escIdle,
                     BStates.escRev,
-                    BStates.escCapLow,
-                    BStates.escCapMid,
-                    BStates.escCapHigh,
                     BStates.escNoidLow,
                     BStates.escNoidHigh,
                     BStates.extendTimeMS,
                     BStates.retractTimeMS,
                     BStates.burstCount,
-                    BStates.burstDelayMS,
                     BStates.spoolDown,
                 )
             except:
@@ -350,20 +330,9 @@ def esc_arm():
     print("ESC armed")
 
 
-def starting_values():
-    if not SEMI.value:
-        setattr(BStates, BStates.escRev, BStates.escCapMid)
-    elif not BURST.value:
-        setattr(BStates, BStates.escRev, BStates.escCapHigh)
-    else:
-        setattr(BStates, BStates.escRev, BStates.escCapLow)
-
-
 enable()
 
 esc_arm()
-
-starting_values()
 
 
 async def main():
