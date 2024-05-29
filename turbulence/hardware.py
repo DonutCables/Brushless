@@ -1,5 +1,6 @@
 import board
 from digitalio import DigitalInOut, Pull, DriveMode
+from busio import I2C
 from pwmio import PWMOut
 from adafruit_debouncer import Button
 from displayio import I2CDisplay, release_displays
@@ -11,7 +12,7 @@ from adafruit_motor import servo
 ## I2C assignments
 release_displays()
 try:
-    i2c = board.STEMMA_I2C()
+    i2c = I2C(board.GP1, board.GP0)
     seesaw = seesaw.Seesaw(i2c, addr=0x49)
 except RuntimeError:
     i2c = None
@@ -25,18 +26,18 @@ except Exception:
 
 ## ESC output creation
 # Outputs in 2ms PWM standard
-esc1Out = PWMOut(board.D5, frequency=100)
-esc4Out = PWMOut(board.D6, frequency=500)
+esc1Out = PWMOut(board.GP2, frequency=100)
+esc4Out = PWMOut(board.GP3, frequency=100)
 # Flywheels as a single output signal
 MOTORS = servo.ContinuousServo(esc1Out, min_pulse=1000, max_pulse=2000)
 # Solenoid as a brushed "motor"
 NOID = servo.ContinuousServo(esc4Out, min_pulse=1000, max_pulse=2000)
 
 ## Initialize all switches
-RTRIG = DigitalInOut(board.D0)
-DTRIG = DigitalInOut(board.D1)
-SEMI = DigitalInOut(board.D2)
-BURST = DigitalInOut(board.D3)
+RTRIG = DigitalInOut(board.GP4)
+DTRIG = DigitalInOut(board.GP6)
+SEMI = DigitalInOut(board.GP7)
+BURST = DigitalInOut(board.GP8)
 
 for button in (RTRIG, DTRIG, SEMI, BURST):
     button.switch_to_input(Pull.UP)
