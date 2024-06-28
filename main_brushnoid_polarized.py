@@ -270,9 +270,11 @@ async def revving_loop():
                     tsleep(BStates.burstDelayMS / 1000)
                 burst_count = BStates.burstCount
             elif BStates.mode == "auto":
-                while not DTRIG.value:
+                while True:
                     BStates.noid_trigger_release()
                     tsleep(BStates.burstDelayMS / 1000)
+                    if DTRIG.value:
+                        break
             await sleep(0)
         if DTRIGB.released and BStates.mode == "binary":
             BStates.noid_trigger_release()
