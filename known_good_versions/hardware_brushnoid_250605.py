@@ -1,3 +1,11 @@
+"""
+Brushless firmware by donutcat
+Hardware setup, last updated 2025-06-05
+"""
+
+"""
+Imports
+"""
 import board
 from digitalio import DigitalInOut, Pull, DriveMode
 from pwmio import PWMOut
@@ -25,8 +33,8 @@ except Exception:
 
 ## ESC output creation
 # Outputs in 2ms PWM standard
-esc1Out = PWMOut(board.D5, frequency=100)
-esc4Out = PWMOut(board.D6, frequency=500)
+esc1Out = PWMOut(board.D5, frequency=200)
+esc4Out = PWMOut(board.D6, frequency=450)
 # Flywheels as a single output signal
 MOTORS = servo.ContinuousServo(esc1Out, min_pulse=1000, max_pulse=2000)
 # Solenoid as a brushed "motor"

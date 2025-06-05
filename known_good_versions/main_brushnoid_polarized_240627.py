@@ -1,4 +1,9 @@
 """
+Brushless firmware by donutcat
+Primary file, last updated 2025-06-05
+"""
+
+"""
 Imports
 """
 # region
@@ -353,7 +358,7 @@ def esc_arm():
     tsleep(0.1)
     BStates.motors_throttle(BStates.escZero)
     BStates.noid_throttle(BStates.escMid)
-    tsleep(4)
+    tsleep(3)
     print("ESC armed")
 
 
